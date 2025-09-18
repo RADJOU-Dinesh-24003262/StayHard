@@ -6,12 +6,10 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import com.example.stayhard.app.model.Quote
 import com.example.stayhard.app.model.Style
-import kotlin.math.min
 
 object ImageGenerator {
     fun generateQuoteImage(context: Context, quote: Quote): Bitmap {

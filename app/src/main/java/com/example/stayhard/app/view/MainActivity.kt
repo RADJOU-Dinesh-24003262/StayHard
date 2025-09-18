@@ -2,13 +2,12 @@ package com.example.stayhard.app.view
 
 import android.app.AlarmManager
 import android.app.PendingIntent
+import android.app.WallpaperManager
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.Typeface
+import android.graphics.Bitmap
+import android.os.Build
 import android.os.Bundle
-import android.view.Gravity
 import android.view.View
-import android.widget.TextView
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.Toast
@@ -28,6 +27,7 @@ class MainActivity : AppCompatActivity() {
 
     private var currentToast: Toast? = null
     private var isLoading = false
+    private var currentWallpaperBitmap: Bitmap? = null // Stocker l'image actuelle
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +43,41 @@ class MainActivity : AppCompatActivity() {
         setupWallpaperChange()
         setupRefreshButton()
         updateQuoteDisplay()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // L'app passe en arrière-plan → définir le fond d'écran
+        setLockScreenWallpaper()
+    }
+
+    override fun onBackPressed() {
+        // L'utilisateur appuie sur retour → définir le fond d'écran puis fermer
+        setLockScreenWallpaper()
+        super.onBackPressed()
+    }
+
+    private fun setLockScreenWallpaper() {
+        currentWallpaperBitmap?.let { bitmap ->
+            try {
+                val wallpaperManager = WallpaperManager.getInstance(this)
+
+                // Définir uniquement pour l'écran de verrouillage
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
+                } else {
+                    // Pour les versions plus anciennes, définir comme fond d'écran principal
+                    wallpaperManager.setBitmap(bitmap)
+                }
+
+                // Notification discrète
+                showToast("Fond d'écran mis à jour")
+
+            } catch (e: Exception) {
+                // En cas d'erreur silencieuse (pas de perturbation pour l'utilisateur)
+                showToast("Erreur lors de la mise à jour du fond d'écran")
+            }
+        }
     }
 
     private fun setupRefreshButton() {
@@ -103,6 +138,8 @@ class MainActivity : AppCompatActivity() {
                 if (quote != null) {
                     // Générer l'image avec le dégradé
                     val bitmap = ImageGenerator.generateQuoteImage(this@MainActivity, quote)
+                    // Stocker l'image pour le fond d'écran
+                    currentWallpaperBitmap = bitmap
                     // Afficher l'image générée
                     imageView.setImageBitmap(bitmap)
 
