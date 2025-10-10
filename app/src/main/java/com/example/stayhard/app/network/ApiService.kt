@@ -4,6 +4,6 @@ import com.example.stayhard.app.model.Quote
 import retrofit2.http.GET
 
 interface ApiService {
-    @GET("citation.php")
+    @GET("/api")
     suspend fun getRandomQuote(): Quote
 }

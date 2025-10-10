@@ -115,20 +115,54 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupWallpaperChange() {
         val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+
+        // Supprimer les anciennes alarmes
         val intent = Intent(this, WallpaperUpdateReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE
+            this, 0, intent, PendingIntent.FLAG_IMMUTABLE
         )
+        alarmManager.cancel(pendingIntent)
 
-        alarmManager.setRepeating(
-            AlarmManager.RTC_WAKEUP,
-            System.currentTimeMillis() + AlarmManager.INTERVAL_HOUR,
-            AlarmManager.INTERVAL_HOUR,
-            pendingIntent
-        )
+        // Programmer les heures fixes
+        val hours = listOf(3, 6, 7, 8, 9, 10, 12, 14, 15, 16, 17, 18, 19, 20, 22)
+
+        //val hours = listOf(0,5,7,9,11,13,15,17,19,21,23,25,30,40,45,50,55)
+
+        hours.forEachIndexed { index, hour ->
+            val calendar = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.HOUR_OF_DAY, hour)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+
+                // Si l'heure est déjà passée aujourd'hui, programmer pour demain
+                if (timeInMillis <= System.currentTimeMillis()) {
+                    add(java.util.Calendar.DAY_OF_MONTH, 1)
+                }
+            }
+
+            val uniqueIntent = Intent(this, WallpaperUpdateReceiver::class.java)
+            val uniquePendingIntent = PendingIntent.getBroadcast(
+                this,
+                1000 + index, // ID unique pour chaque alarme
+                uniqueIntent,
+                PendingIntent.FLAG_IMMUTABLE
+            )
+
+            // Alarme répétitive quotidienne
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    uniquePendingIntent
+                )
+            } else {
+                alarmManager.setExact(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    uniquePendingIntent
+                )
+            }
+        }
     }
 
     private fun updateQuoteDisplay() {
@@ -138,9 +172,9 @@ class MainActivity : AppCompatActivity() {
                 if (quote != null) {
                     // Générer l'image avec le dégradé
                     val bitmap = ImageGenerator.generateQuoteImage(this@MainActivity, quote)
-                    // Stocker l'image pour le fond d'écran
+                    // Stocker l'image pour le fond d'écran à la fermeture
                     currentWallpaperBitmap = bitmap
-                    // Afficher l'image générée
+                    // AFFICHER l'image générée (fetch manuel)
                     imageView.setImageBitmap(bitmap)
 
                     // Toast de confirmation (sans spam)
@@ -150,6 +184,34 @@ class MainActivity : AppCompatActivity() {
                     showToast("Erreur lors du chargement")
                 }
             }
+        }
+    }
+
+    // Nouvelle fonction pour fetch automatique (sans affichage)
+    fun fetchAndSetWallpaperDirectly() {
+        viewModel.fetchQuote { quote ->
+            if (quote != null) {
+                // Générer l'image avec le dégradé
+                val bitmap = ImageGenerator.generateQuoteImage(this@MainActivity, quote)
+                // Définir directement comme fond d'écran (sans afficher dans l'app)
+                setWallpaperDirectly(bitmap)
+            }
+        }
+    }
+
+    private fun setWallpaperDirectly(bitmap: Bitmap) {
+        try {
+            val wallpaperManager = WallpaperManager.getInstance(this)
+
+            // Définir uniquement pour l'écran de verrouillage
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
+            } else {
+                wallpaperManager.setBitmap(bitmap)
+            }
+
+        } catch (e: Exception) {
+            // Erreur silencieuse pour les mises à jour automatiques
         }
     }
 }
