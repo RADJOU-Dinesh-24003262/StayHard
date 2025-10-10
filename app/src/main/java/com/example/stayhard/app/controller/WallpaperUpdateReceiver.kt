@@ -8,24 +8,31 @@ import android.os.Build
 import android.util.Log
 import com.example.stayhard.app.utils.ImageGenerator
 import com.example.stayhard.app.network.ApiServiceFactory
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 
 class WallpaperUpdateReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         Log.d("WallpaperUpdate", "Alarme reçue à : ${System.currentTimeMillis()}")
 
-        // Créer le repository directement
-        val repository = QuoteRepository(ApiServiceFactory.create())
+        // ✅ CORRECTION : Utiliser goAsync() pour opérations longues
+        val pendingResult = goAsync()
 
-        // Utiliser coroutine pour le fetch automatique
-        GlobalScope.launch {
+        // ✅ Créer un scope avec SupervisorJob (crash isolé)
+        val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+        scope.launch {
             try {
+                // ✅ Utiliser Dependencies au lieu de créer directement
+                val repository = com.example.stayhard.app.di.Dependencies.provideQuoteRepository()
+
+                // Récupérer la citation
                 val quote = repository.getRandomQuote()
+
+                // Générer l'image
                 val bitmap = ImageGenerator.generateQuoteImage(context, quote)
 
-                // Définir directement comme fond d'écran de verrouillage
+                // Définir comme fond d'écran de verrouillage
                 val wallpaperManager = WallpaperManager.getInstance(context)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
@@ -36,7 +43,10 @@ class WallpaperUpdateReceiver : BroadcastReceiver() {
                 Log.d("WallpaperReceiver", "Fond d'écran mis à jour automatiquement")
 
             } catch (e: Exception) {
-                Log.e("WallpaperReceiver", "Erreur lors de la mise à jour automatique: ${e.message}")
+                Log.e("WallpaperReceiver", "Erreur lors de la mise à jour automatique: ${e.message}", e)
+            } finally {
+                // ✅ IMPORTANT : Signaler la fin du traitement
+                pendingResult.finish()
             }
         }
     }

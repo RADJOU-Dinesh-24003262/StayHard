@@ -1,12 +1,7 @@
 package com.example.stayhard.app.view
 
-import android.app.AlarmManager
-import android.app.PendingIntent
-import android.app.WallpaperManager
-import android.content.Intent
-import android.graphics.Bitmap
-import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.ProgressBar
@@ -15,203 +10,290 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.example.stayhard.app.R
 import com.example.stayhard.app.controller.QuoteViewModel
-import com.example.stayhard.app.controller.WallpaperUpdateReceiver
-import com.example.stayhard.app.utils.ImageGenerator
+import com.example.stayhard.app.utils.*
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 
 class MainActivity : AppCompatActivity() {
+
+    // Views
     private lateinit var imageView: ImageView
     private lateinit var fabRefresh: FloatingActionButton
     private lateinit var progressBar: ProgressBar
+
+    // ViewModel
     private lateinit var viewModel: QuoteViewModel
 
+    // ✅ Gestionnaire de Bitmap pour éviter les leaks
+    private val bitmapManager = BitmapManager()
+
+    // État
     private var currentToast: Toast? = null
     private var isLoading = false
-    private var currentWallpaperBitmap: Bitmap? = null // Stocker l'image actuelle
+
+    // ✅ Flag pour éviter les opérations après destruction
+    private var isDestroyed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Initialiser les vues
+        isDestroyed = false
+
+        initViews()
+        initViewModel()
+        setupAlarms()
+        setupRefreshButton()
+        loadInitialQuote()
+
+        Log.d("MainActivity", "onCreate completed")
+    }
+
+    /**
+     * Initialise les vues
+     */
+    private fun initViews() {
         imageView = findViewById(R.id.imageView)
         fabRefresh = findViewById(R.id.fabRefresh)
         progressBar = findViewById(R.id.progressBar)
+    }
 
+    /**
+     * Initialise le ViewModel avec LiveData observer
+     */
+    private fun initViewModel() {
         viewModel = ViewModelProvider(this)[QuoteViewModel::class.java]
 
-        setupWallpaperChange()
-        setupRefreshButton()
-        updateQuoteDisplay()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        // L'app passe en arrière-plan → définir le fond d'écran
-        setLockScreenWallpaper()
-    }
-
-    override fun onBackPressed() {
-        // L'utilisateur appuie sur retour → définir le fond d'écran puis fermer
-        setLockScreenWallpaper()
-        super.onBackPressed()
-    }
-
-    private fun setLockScreenWallpaper() {
-        currentWallpaperBitmap?.let { bitmap ->
-            try {
-                val wallpaperManager = WallpaperManager.getInstance(this)
-
-                // Définir uniquement pour l'écran de verrouillage
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
-                } else {
-                    // Pour les versions plus anciennes, définir comme fond d'écran principal
-                    wallpaperManager.setBitmap(bitmap)
-                }
-
-                // Notification discrète
-                showToast("Fond d'écran mis à jour")
-
-            } catch (e: Exception) {
-                // En cas d'erreur silencieuse (pas de perturbation pour l'utilisateur)
-                showToast("Erreur lors de la mise à jour du fond d'écran")
+        // ✅ Observer le LiveData (meilleure pratique)
+        viewModel.quote.observe(this) { quote ->
+            if (!isDestroyed && quote != null) {
+                handleQuoteSuccess(quote)
             }
         }
     }
 
+    /**
+     * Configure les alarmes pour le changement automatique
+     */
+    private fun setupAlarms() {
+        try {
+            AlarmManagerHelper.setupWallpaperAlarms(this)
+            Log.d("MainActivity", "Alarmes configurées")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Erreur configuration alarmes: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Configure le bouton refresh
+     */
     private fun setupRefreshButton() {
         fabRefresh.setOnClickListener {
-            if (!isLoading) { // Empêcher le spam
+            if (!isLoading && !isDestroyed) {
                 refreshQuote()
             }
         }
     }
 
+    /**
+     * Rafraîchit la citation
+     */
     private fun refreshQuote() {
+        if (isDestroyed) return
+
         isLoading = true
         showLoading(true)
-        updateQuoteDisplay()
-    }
 
-    private fun showLoading(show: Boolean) {
-        if (show) {
-            progressBar.visibility = View.VISIBLE
-            fabRefresh.hide()
-        } else {
-            progressBar.visibility = View.GONE
-            fabRefresh.show()
-            isLoading = false
-        }
-    }
-
-    private fun showToast(message: String) {
-        // Annuler le toast précédent s'il existe
-        currentToast?.cancel()
-        // Créer et afficher le nouveau toast
-        currentToast = Toast.makeText(this, message, Toast.LENGTH_SHORT)
-        currentToast?.show()
-    }
-
-    private fun setupWallpaperChange() {
-        val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
-
-        // Supprimer les anciennes alarmes
-        val intent = Intent(this, WallpaperUpdateReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            this, 0, intent, PendingIntent.FLAG_IMMUTABLE
-        )
-        alarmManager.cancel(pendingIntent)
-
-        // Programmer les heures fixes
-        val hours = listOf(3, 6, 7, 8, 9, 10, 12, 14, 15, 16, 17, 18, 19, 20, 22)
-
-        //val hours = listOf(0,5,7,9,11,13,15,17,19,21,23,25,30,40,45,50,55)
-
-        hours.forEachIndexed { index, hour ->
-            val calendar = java.util.Calendar.getInstance().apply {
-                set(java.util.Calendar.HOUR_OF_DAY, hour)
-                set(java.util.Calendar.MINUTE, 0)
-                set(java.util.Calendar.SECOND, 0)
-
-                // Si l'heure est déjà passée aujourd'hui, programmer pour demain
-                if (timeInMillis <= System.currentTimeMillis()) {
-                    add(java.util.Calendar.DAY_OF_MONTH, 1)
-                }
-            }
-
-            val uniqueIntent = Intent(this, WallpaperUpdateReceiver::class.java)
-            val uniquePendingIntent = PendingIntent.getBroadcast(
-                this,
-                1000 + index, // ID unique pour chaque alarme
-                uniqueIntent,
-                PendingIntent.FLAG_IMMUTABLE
-            )
-
-            // Alarme répétitive quotidienne
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    calendar.timeInMillis,
-                    uniquePendingIntent
-                )
-            } else {
-                alarmManager.setExact(
-                    AlarmManager.RTC_WAKEUP,
-                    calendar.timeInMillis,
-                    uniquePendingIntent
-                )
-            }
-        }
-    }
-
-    private fun updateQuoteDisplay() {
+        // ✅ Utiliser le callback mais avec protection
         viewModel.fetchQuote { quote ->
-            runOnUiThread {
-                showLoading(false)
-                if (quote != null) {
-                    // Générer l'image avec le dégradé
-                    val bitmap = ImageGenerator.generateQuoteImage(this@MainActivity, quote)
-                    // Stocker l'image pour le fond d'écran à la fermeture
-                    currentWallpaperBitmap = bitmap
-                    // AFFICHER l'image générée (fetch manuel)
-                    imageView.setImageBitmap(bitmap)
-
-                    // Toast de confirmation (sans spam)
-                    showToast("Citation mise à jour !")
-                } else {
-                    // En cas d'erreur
-                    showToast("Erreur lors du chargement")
+            if (!isDestroyed && !isFinishing) {
+                runOnUiThread {
+                    showLoading(false)
+                    if (quote != null) {
+                        handleQuoteSuccess(quote)
+                    } else {
+                        handleQuoteError(Constants.Messages.QUOTE_ERROR)
+                    }
                 }
             }
         }
     }
 
-    // Nouvelle fonction pour fetch automatique (sans affichage)
-    fun fetchAndSetWallpaperDirectly() {
+    /**
+     * Charge la première citation
+     */
+    private fun loadInitialQuote() {
+        if (isDestroyed) return
+
         viewModel.fetchQuote { quote ->
-            if (quote != null) {
-                // Générer l'image avec le dégradé
-                val bitmap = ImageGenerator.generateQuoteImage(this@MainActivity, quote)
-                // Définir directement comme fond d'écran (sans afficher dans l'app)
-                setWallpaperDirectly(bitmap)
+            if (!isDestroyed && !isFinishing) {
+                runOnUiThread {
+                    showLoading(false)
+                    if (quote != null) {
+                        handleQuoteSuccess(quote)
+                    } else {
+                        handleQuoteError(Constants.Messages.QUOTE_ERROR)
+                    }
+                }
             }
         }
     }
 
-    private fun setWallpaperDirectly(bitmap: Bitmap) {
+    /**
+     * Gère le succès du chargement d'une citation
+     */
+    private fun handleQuoteSuccess(quote: com.example.stayhard.app.model.Quote) {
+        if (isDestroyed) return
+
         try {
-            val wallpaperManager = WallpaperManager.getInstance(this)
+            // Générer l'image
+            val bitmap = ImageGenerator.generateQuoteImage(this, quote)
 
-            // Définir uniquement pour l'écran de verrouillage
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
-            } else {
-                wallpaperManager.setBitmap(bitmap)
-            }
+            // ✅ Mettre à jour via BitmapManager (recycle l'ancien)
+            bitmapManager.updateBitmap(bitmap)
+
+            // Afficher dans l'ImageView
+            imageView.setImageBitmap(bitmap)
+
+            // Toast de confirmation
+            showToast(Constants.Messages.QUOTE_UPDATED)
+
+            Log.d("MainActivity", "Citation chargée avec succès")
 
         } catch (e: Exception) {
-            // Erreur silencieuse pour les mises à jour automatiques
+            Log.e("MainActivity", "Erreur lors du traitement de la citation: ${e.message}", e)
+            handleQuoteError("Erreur lors de la génération de l'image")
+        }
+    }
+
+    /**
+     * Gère l'erreur de chargement
+     */
+    private fun handleQuoteError(message: String) {
+        if (isDestroyed) return
+        showToast(message)
+        Log.e("MainActivity", "Erreur: $message")
+    }
+
+    /**
+     * Affiche/masque l'indicateur de chargement
+     */
+    private fun showLoading(show: Boolean) {
+        if (isDestroyed) return
+
+        try {
+            if (show) {
+                progressBar.visibility = View.VISIBLE
+                fabRefresh.hide()
+            } else {
+                progressBar.visibility = View.GONE
+                fabRefresh.show()
+                isLoading = false
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Erreur showLoading: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Affiche un toast (annule le précédent)
+     */
+    private fun showToast(message: String) {
+        if (isDestroyed || isFinishing) return
+
+        try {
+            currentToast?.cancel()
+            currentToast = Toast.makeText(this, message, Toast.LENGTH_SHORT).apply { show() }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Erreur showToast: ${e.message}", e)
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // LIFECYCLE - Gestion du fond d'écran
+    // ═════════════════════════════════════════════════════════════
+
+    override fun onPause() {
+        super.onPause()
+        Log.d("MainActivity", "onPause()")
+
+        // ✅ Définir le fond d'écran quand l'app passe en arrière-plan
+        // Mais seulement si pas en cours de destruction
+        if (!isFinishing && !isDestroyed) {
+            setWallpaperIfAvailable()
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Log.d("MainActivity", "onStop()")
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        Log.d("MainActivity", "onBackPressed()")
+
+        // ✅ Définir le fond d'écran avant de quitter
+        setWallpaperIfAvailable()
+
+        super.onBackPressed()
+    }
+
+    override fun onDestroy() {
+        Log.d("MainActivity", "onDestroy() - début")
+
+        // ✅ Marquer comme détruit AVANT tout nettoyage
+        isDestroyed = true
+
+        // ✅ Nettoyer les ressources
+        try {
+            bitmapManager.clear()
+            currentToast?.cancel()
+            currentToast = null
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Erreur dans onDestroy: ${e.message}", e)
+        }
+
+        super.onDestroy()
+
+        Log.d("MainActivity", "onDestroy() - fin")
+    }
+
+    /**
+     * Définit le fond d'écran si un bitmap est disponible
+     * @param showNotification Afficher ou non un toast (false en arrière-plan)
+     */
+    private fun setWallpaperIfAvailable(showNotification: Boolean = true) {
+        if (isDestroyed) {
+            Log.d("MainActivity", "setWallpaperIfAvailable - Activity détruite, skip")
+            return
+        }
+
+        if (!bitmapManager.hasBitmap()) {
+            Log.d("MainActivity", "setWallpaperIfAvailable - Pas de bitmap disponible")
+            return
+        }
+
+        try {
+            bitmapManager.getCurrentBitmap()?.let { bitmap ->
+                Log.d("MainActivity", "setWallpaperIfAvailable - Tentative de définir le wallpaper")
+
+                val success = WallpaperManagerHelper.setLockScreenWallpaper(this, bitmap)
+
+                if (success) {
+                    Log.d("MainActivity", "Wallpaper défini avec succès")
+                    // ✅ Afficher toast seulement si demandé ET si l'app est visible
+                    if (showNotification && !isFinishing) {
+                        showToast(Constants.Messages.WALLPAPER_UPDATED)
+                    }
+                } else {
+                    Log.e("MainActivity", "Échec de la définition du wallpaper")
+                    if (showNotification && !isFinishing) {
+                        showToast(Constants.Messages.WALLPAPER_ERROR)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Exception lors de setWallpaperIfAvailable: ${e.message}", e)
         }
     }
 }

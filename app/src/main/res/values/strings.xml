@@ -1,0 +1,20 @@
+<resources>
+    <!-- ✅ Nom de l'application -->
+    <string name="app_name">StayHard</string>
+
+    <!-- ✅ Descriptions pour accessibilité -->
+    <string name="desc_quote_image">Citation motivante</string>
+    <string name="desc_refresh_button">Rafraîchir la citation</string>
+
+    <!-- ✅ Messages utilisateur -->
+    <string name="msg_wallpaper_updated">Fond d\'écran mis à jour</string>
+    <string name="msg_wallpaper_error">Erreur lors de la mise à jour du fond d\'écran</string>
+    <string name="msg_quote_updated">Citation mise à jour !</string>
+    <string name="msg_quote_error">Erreur lors du chargement</string>
+    <string name="msg_no_internet">Pas de connexion internet</string>
+
+    <!-- ✅ Messages de debug -->
+    <string name="debug_alarm_received">Alarme reçue</string>
+    <string name="debug_alarm_scheduled">Alarme programmée</string>
+    <string name="debug_boot_completed">Appareil redémarré</string>
+</resources>

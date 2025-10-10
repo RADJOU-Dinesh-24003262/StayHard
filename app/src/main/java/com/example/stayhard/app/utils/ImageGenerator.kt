@@ -1,48 +1,61 @@
 package com.example.stayhard.app.utils
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.Shader
-import android.graphics.Typeface
+import android.graphics.*
 import com.example.stayhard.app.model.Quote
 import com.example.stayhard.app.model.Style
+import com.example.stayhard.app.utils.Constants.Image
 
 object ImageGenerator {
+
+    /**
+     * Génère une image bitmap à partir d'une citation
+     * Applique le style fourni ou utilise les valeurs par défaut
+     */
     fun generateQuoteImage(context: Context, quote: Quote): Bitmap {
-        val width = 1080
-        val height = 1920
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val bitmap = Bitmap.createBitmap(Image.WIDTH, Image.HEIGHT, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
         // Utiliser un style par défaut si null
-        val defaultStyle = Style()
-        val style = quote.style ?: defaultStyle
+        val style = quote.style ?: createDefaultStyle()
 
-        // Appliquer le fond (uni ou dégradé) - SANS FORME
-        applyBackground(canvas, style, width, height)
+        // Appliquer le fond (uni ou dégradé)
+        applyBackground(canvas, style, Image.WIDTH, Image.HEIGHT)
 
-        // Dessiner SEULEMENT le texte, pas de forme de fond
+        // Dessiner le texte avec ombre
         drawTextWithShadow(canvas, quote, style)
 
         return bitmap
     }
 
+    /**
+     * Crée un style par défaut
+     */
+    private fun createDefaultStyle(): Style {
+        return Style(
+            fontFamily = Constants.DefaultStyle.FONT_FAMILY,
+            fontSize = Constants.DefaultStyle.FONT_SIZE,
+            textColor = Constants.DefaultStyle.TEXT_COLOR,
+            backgroundColor = Constants.DefaultStyle.BACKGROUND_COLOR,
+            shape = Constants.DefaultStyle.SHAPE,
+            position = Constants.DefaultStyle.POSITION
+        )
+    }
+
+    /**
+     * Applique le fond d'écran (dégradé ou couleur unie)
+     */
     private fun applyBackground(canvas: Canvas, style: Style, width: Int, height: Int) {
-        // Debug: toujours appliquer un dégradé même s'il n'y en a pas dans le JSON
         val gradient = style.backgroundGradient
 
         if (gradient != null) {
-            println("DEBUG: Applying gradient from ${gradient.startColor} to ${gradient.endColor}")
+            // ✅ Dégradé
             val paint = Paint().apply {
                 isAntiAlias = true
-                val startColor = Color.parseColor(gradient.startColor)
-                val endColor = Color.parseColor(gradient.endColor)
+                val startColor = parseColorSafe(gradient.startColor)
+                val endColor = parseColorSafe(gradient.endColor)
 
-                val shader = when(gradient.direction) {
+                shader = when (gradient.direction) {
                     "horizontal" -> LinearGradient(
                         0f, 0f, width.toFloat(), 0f,
                         startColor, endColor, Shader.TileMode.CLAMP
@@ -56,39 +69,27 @@ object ImageGenerator {
                         startColor, endColor, Shader.TileMode.CLAMP
                     )
                 }
-                this.shader = shader
             }
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
         } else {
-            println("DEBUG: No gradient found, using solid color")
-            // Couleur unie si pas de dégradé - utiliser une couleur par défaut colorée
-            val bgColor = Color.parseColor(style.backgroundColor ?: "#667eea")
+            // ✅ Couleur unie
+            val bgColor = parseColorSafe(style.backgroundColor ?: Constants.DefaultStyle.BACKGROUND_COLOR)
             canvas.drawColor(bgColor)
         }
     }
 
+    /**
+     * Dessine le texte avec ombre portée
+     */
     private fun drawTextWithShadow(canvas: Canvas, quote: Quote, style: Style) {
-        val textPaint = Paint().apply {
-            color = Color.parseColor(style.textColor ?: "#FFFFFF")
-            textSize = (style.fontSize?.toFloat() ?: 24f) * 2.5f // Plus grand pour impact
-            typeface = Typeface.create(style.fontFamily ?: "Arial", Typeface.BOLD)
-            textAlign = Paint.Align.CENTER
-            isAntiAlias = true
-        }
-
-        val shadowPaint = Paint().apply {
-            color = Color.argb(100, 0, 0, 0) // Ombre légère
-            textSize = textPaint.textSize
-            typeface = textPaint.typeface
-            textAlign = textPaint.textAlign
-            isAntiAlias = true
-        }
+        val textPaint = createTextPaint(style, false)
+        val shadowPaint = createTextPaint(style, true)
 
         val centerX = canvas.width / 2f
         val centerY = canvas.height / 2f
 
-        // Diviser le texte en lignes si nécessaire
-        val maxWidth = canvas.width - 200f // Marges
+        // Diviser le texte en lignes
+        val maxWidth = canvas.width - Image.MARGIN
         val lines = wrapText(quote.texte, textPaint, maxWidth)
 
         val lineHeight = textPaint.descent() - textPaint.ascent()
@@ -98,30 +99,62 @@ object ImageGenerator {
         // Dessiner chaque ligne avec ombre
         lines.forEachIndexed { index, line ->
             val y = startY + (index * lineHeight)
-
-            // Dessiner l'ombre (légèrement décalée)
-            canvas.drawText(line, centerX + 4f, y + 4f, shadowPaint)
-            // Dessiner le texte principal
+            // Ombre
+            canvas.drawText(line, centerX + Image.SHADOW_OFFSET, y + Image.SHADOW_OFFSET, shadowPaint)
+            // Texte principal
             canvas.drawText(line, centerX, y, textPaint)
         }
 
         // Dessiner l'auteur
+        drawAuthor(canvas, quote.auteur, style, startY + (lines.size * lineHeight), centerX)
+    }
+
+    /**
+     * Dessine le nom de l'auteur
+     */
+    private fun drawAuthor(canvas: Canvas, author: String, style: Style, startY: Float, centerX: Float) {
         val authorPaint = Paint().apply {
-            color = Color.parseColor(style.textColor ?: "#FFFFFF")
-            textSize = textPaint.textSize * 0.7f
-            typeface = Typeface.create(style.fontFamily ?: "Arial", Typeface.ITALIC)
+            color = parseColorSafe(style.textColor ?: Constants.DefaultStyle.TEXT_COLOR)
+            textSize = (style.fontSize ?: Constants.DefaultStyle.FONT_SIZE).toFloat() *
+                    Image.TEXT_SIZE_MULTIPLIER * Image.AUTHOR_SIZE_RATIO
+            typeface = Typeface.create(style.fontFamily ?: Constants.DefaultStyle.FONT_FAMILY, Typeface.ITALIC)
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
         }
 
-        val authorY = startY + (lines.size * lineHeight) + 80f
-        canvas.drawText("— ${quote.auteur}", centerX + 2f, authorY + 2f, shadowPaint.apply {
-            textSize = authorPaint.textSize
-            typeface = authorPaint.typeface
-        })
-        canvas.drawText("— ${quote.auteur}", centerX, authorY, authorPaint)
+        val shadowPaint = Paint(authorPaint).apply {
+            color = Color.argb(Image.SHADOW_ALPHA, 0, 0, 0)
+        }
+
+        val authorY = startY + Image.AUTHOR_SPACING
+        val authorText = "— $author"
+
+        // Ombre
+        canvas.drawText(authorText, centerX + 2f, authorY + 2f, shadowPaint)
+        // Texte
+        canvas.drawText(authorText, centerX, authorY, authorPaint)
     }
 
+    /**
+     * Crée un Paint pour le texte
+     */
+    private fun createTextPaint(style: Style, isShadow: Boolean): Paint {
+        return Paint().apply {
+            color = if (isShadow) {
+                Color.argb(Image.SHADOW_ALPHA, 0, 0, 0)
+            } else {
+                parseColorSafe(style.textColor ?: Constants.DefaultStyle.TEXT_COLOR)
+            }
+            textSize = (style.fontSize ?: Constants.DefaultStyle.FONT_SIZE).toFloat() * Image.TEXT_SIZE_MULTIPLIER
+            typeface = Typeface.create(style.fontFamily ?: Constants.DefaultStyle.FONT_FAMILY, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+    }
+
+    /**
+     * Divise le texte en lignes pour qu'il tienne dans la largeur max
+     */
     private fun wrapText(text: String, paint: Paint, maxWidth: Float): List<String> {
         val words = text.split(" ")
         val lines = mutableListOf<String>()
@@ -144,5 +177,17 @@ object ImageGenerator {
         }
 
         return lines.ifEmpty { listOf(text) }
+    }
+
+    /**
+     * Parse une couleur de manière sécurisée avec fallback
+     */
+    private fun parseColorSafe(colorString: String): Int {
+        return try {
+            Color.parseColor(colorString)
+        } catch (e: IllegalArgumentException) {
+            // Fallback sur blanc si parsing échoue
+            Color.parseColor(Constants.DefaultStyle.TEXT_COLOR)
+        }
     }
 }

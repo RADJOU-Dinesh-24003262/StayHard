@@ -29,9 +29,17 @@
         </activity>
 
 
-
-        <receiver android:name=".controller.WallpaperUpdateReceiver"
+        <!-- ✅ Receiver pour les alarmes de mise à jour du fond d'écran -->
+        <receiver
+            android:name=".controller.WallpaperUpdateReceiver"
             android:exported="false">
+        </receiver>
+
+        <!-- ✅ Receiver pour reprogrammer les alarmes après reboot -->
+        <receiver
+            android:name=".controller.BootReceiver"
+            android:exported="true"
+            android:enabled="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
