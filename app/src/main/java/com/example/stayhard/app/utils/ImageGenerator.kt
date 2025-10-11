@@ -2,6 +2,7 @@ package com.example.stayhard.app.utils
 
 import android.content.Context
 import android.graphics.*
+import android.util.Log
 import com.example.stayhard.app.model.Quote
 import com.example.stayhard.app.model.Style
 import com.example.stayhard.app.utils.Constants.Image
@@ -10,22 +11,38 @@ object ImageGenerator {
 
     /**
      * Génère une image bitmap à partir d'une citation
-     * Applique le style fourni ou utilise les valeurs par défaut
+     * ✅ CORRECTION: Gestion d'erreur robuste avec try-catch et nettoyage bitmap
      */
     fun generateQuoteImage(context: Context, quote: Quote): Bitmap {
-        val bitmap = Bitmap.createBitmap(Image.WIDTH, Image.HEIGHT, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
+        var bitmap: Bitmap? = null
 
-        // Utiliser un style par défaut si null
-        val style = quote.style ?: createDefaultStyle()
+        try {
+            bitmap = Bitmap.createBitmap(Image.WIDTH, Image.HEIGHT, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
 
-        // Appliquer le fond (uni ou dégradé)
-        applyBackground(canvas, style, Image.WIDTH, Image.HEIGHT)
+            // Utiliser un style par défaut si null
+            val style = quote.style ?: createDefaultStyle()
 
-        // Dessiner le texte avec ombre
-        drawTextWithShadow(canvas, quote, style)
+            // Appliquer le fond (uni ou dégradé)
+            applyBackground(canvas, style, Image.WIDTH, Image.HEIGHT)
 
-        return bitmap
+            // Dessiner le texte avec ombre
+            drawTextWithShadow(canvas, quote, style)
+
+            return bitmap
+
+        } catch (e: OutOfMemoryError) {
+            // ✅ AJOUT: Gestion OOM
+            Log.e(Constants.LogTags.IMAGE_GENERATOR, "Mémoire insuffisante pour créer le bitmap", e)
+            bitmap?.recycle()
+            throw AppException.WallpaperException("Mémoire insuffisante")
+
+        } catch (e: Exception) {
+            // ✅ AJOUT: Gestion erreurs générales
+            Log.e(Constants.LogTags.IMAGE_GENERATOR, "Erreur lors de la génération: ${e.message}", e)
+            bitmap?.recycle()
+            throw e
+        }
     }
 
     /**
@@ -181,12 +198,13 @@ object ImageGenerator {
 
     /**
      * Parse une couleur de manière sécurisée avec fallback
+     * ✅ AMÉLIORATION: Log l'erreur pour debug
      */
     private fun parseColorSafe(colorString: String): Int {
         return try {
             Color.parseColor(colorString)
         } catch (e: IllegalArgumentException) {
-            // Fallback sur blanc si parsing échoue
+            Log.w(Constants.LogTags.IMAGE_GENERATOR, "Couleur invalide: $colorString, fallback sur blanc")
             Color.parseColor(Constants.DefaultStyle.TEXT_COLOR)
         }
     }

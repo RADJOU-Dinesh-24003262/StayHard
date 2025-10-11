@@ -10,43 +10,44 @@ import com.example.stayhard.app.controller.WallpaperUpdateReceiver
 import java.util.*
 
 object AlarmManagerHelper {
-    
+
     private const val PREFS_NAME = "stayhard_prefs"
     private const val KEY_ALARMS_SCHEDULED = "alarms_scheduled"
-    
-    // ✅ Constantes externalisées
-    private val WALLPAPER_UPDATE_HOURS = listOf(3, 6, 7, 8, 9, 10, 12, 14, 15, 16, 17, 18, 19, 20, 22)
+
+    // Horaires stratégiques: matin, midi, après-midi, soir
+    private val WALLPAPER_UPDATE_HOURS = listOf(6, 10, 12, 15, 18, 21)
+
     private const val BASE_REQUEST_CODE = 1000
-    
+
     /**
      * Configure les alarmes pour le changement automatique de fond d'écran
-     * Vérifie si déjà programmées pour éviter les doublons
+     * ✅ OPTIMISATION: Seulement 6 alarmes au lieu de 15
      */
     fun setupWallpaperAlarms(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        
+
         // ✅ Vérifier si alarmes déjà programmées
         if (prefs.getBoolean(KEY_ALARMS_SCHEDULED, false)) {
-            Log.d("AlarmManager", "Alarmes déjà programmées, skip")
+            Log.d(Constants.LogTags.ALARM_MANAGER, "Alarmes déjà programmées, skip")
             return
         }
-        
+
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        
+
         // Annuler toutes les anciennes alarmes au cas où
         cancelAllAlarms(context)
-        
+
         // Programmer les nouvelles alarmes
         WALLPAPER_UPDATE_HOURS.forEachIndexed { index, hour ->
             scheduleAlarmForHour(context, alarmManager, hour, index)
         }
-        
+
         // ✅ Marquer comme programmées
         prefs.edit().putBoolean(KEY_ALARMS_SCHEDULED, true).apply()
-        
-        Log.d("AlarmManager", "${WALLPAPER_UPDATE_HOURS.size} alarmes programmées avec succès")
+
+        Log.d(Constants.LogTags.ALARM_MANAGER, "${WALLPAPER_UPDATE_HOURS.size} alarmes programmées avec succès")
     }
-    
+
     /**
      * Programme une alarme pour une heure donnée
      */
@@ -77,30 +78,37 @@ object AlarmManagerHelper {
         )
 
         // ✅ Alarme exacte qui fonctionne même en Doze Mode
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                calendar.timeInMillis,
-                pendingIntent
-            )
-        } else {
-            alarmManager.setExact(
-                AlarmManager.RTC_WAKEUP,
-                calendar.timeInMillis,
-                pendingIntent
-            )
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.setExact(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    pendingIntent
+                )
+            }
+
+            Log.d(Constants.LogTags.ALARM_MANAGER, "Alarme programmée pour ${hour}h00 (Request code: ${BASE_REQUEST_CODE + index})")
+        } catch (e: SecurityException) {
+            Log.e(Constants.LogTags.ALARM_MANAGER, "Permission SCHEDULE_EXACT_ALARM refusée: ${e.message}", e)
         }
-        
-        Log.d("AlarmManager", "Alarme programmée pour ${hour}h00 (Request code: ${BASE_REQUEST_CODE + index})")
     }
-    
+
     /**
      * Annule toutes les alarmes programmées
      */
     fun cancelAllAlarms(context: Context) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        
-        WALLPAPER_UPDATE_HOURS.forEachIndexed { index, _ ->
+
+        // ✅ CORRECTION: Annuler TOUTES les alarmes possibles (anciennes + nouvelles)
+        val allPossibleHours = listOf(3, 6, 7, 8, 9, 10, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22)
+
+        allPossibleHours.forEachIndexed { index, _ ->
             val intent = Intent(context, WallpaperUpdateReceiver::class.java)
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
@@ -108,20 +116,20 @@ object AlarmManagerHelper {
                 intent,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE
             )
-            
+
             pendingIntent?.let {
                 alarmManager.cancel(it)
                 it.cancel()
             }
         }
-        
+
         // Reset le flag
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putBoolean(KEY_ALARMS_SCHEDULED, false).apply()
-        
-        Log.d("AlarmManager", "Toutes les alarmes annulées")
+
+        Log.d(Constants.LogTags.ALARM_MANAGER, "Toutes les alarmes annulées")
     }
-    
+
     /**
      * Reprogramme toutes les alarmes (utile après reboot)
      */

@@ -1,12 +1,17 @@
 package com.example.stayhard.app.view
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.example.stayhard.app.R
 import com.example.stayhard.app.controller.QuoteViewModel
@@ -41,10 +46,92 @@ class MainActivity : AppCompatActivity() {
 
         initViews()
         initViewModel()
+
+        // ✅ AJOUT: Vérifier les permissions avant de continuer
+        checkPermissions()
+    }
+
+    /**
+     * ✅ NOUVEAU: Vérifie et demande les permissions nécessaires
+     */
+    private fun checkPermissions() {
+        // Permission SET_WALLPAPER
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SET_WALLPAPER)
+            != PackageManager.PERMISSION_GRANTED) {
+
+            // Expliquer pourquoi on a besoin de la permission
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.SET_WALLPAPER)) {
+                showPermissionExplanationDialog()
+            } else {
+                requestWallpaperPermission()
+            }
+        } else {
+            // Permission déjà accordée, continuer normalement
+            onPermissionsGranted()
+        }
+    }
+
+    /**
+     * ✅ NOUVEAU: Affiche un dialog d'explication
+     */
+    private fun showPermissionExplanationDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Permission requise")
+            .setMessage("Cette application a besoin de la permission pour définir le fond d'écran afin de fonctionner correctement.")
+            .setPositiveButton("Autoriser") { _, _ ->
+                requestWallpaperPermission()
+            }
+            .setNegativeButton("Refuser") { dialog, _ ->
+                dialog.dismiss()
+                showToast("Permission refusée - Fonctionnalité limitée")
+                onPermissionsGranted() // Continuer quand même mais sans wallpaper
+            }
+            .show()
+    }
+
+    /**
+     * ✅ NOUVEAU: Demande la permission
+     */
+    private fun requestWallpaperPermission() {
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(Manifest.permission.SET_WALLPAPER),
+            Constants.RequestCodes.SET_WALLPAPER
+        )
+    }
+
+    /**
+     * ✅ NOUVEAU: Callback du résultat de la demande de permission
+     */
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        when (requestCode) {
+            Constants.RequestCodes.SET_WALLPAPER -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Log.d(Constants.LogTags.PERMISSION, "Permission SET_WALLPAPER accordée")
+                    showToast("Permission accordée !")
+                    onPermissionsGranted()
+                } else {
+                    Log.w(Constants.LogTags.PERMISSION, "Permission SET_WALLPAPER refusée")
+                    showToast("Permission refusée - Fonctionnalité limitée")
+                    onPermissionsGranted() // Continuer quand même
+                }
+            }
+        }
+    }
+
+    /**
+     * ✅ NOUVEAU: Appelé quand les permissions sont OK (ou refusées mais on continue)
+     */
+    private fun onPermissionsGranted() {
         setupAlarms()
         setupRefreshButton()
         loadInitialQuote()
-
         Log.d("MainActivity", "onCreate completed")
     }
 
@@ -123,6 +210,8 @@ class MainActivity : AppCompatActivity() {
      */
     private fun loadInitialQuote() {
         if (isDestroyed) return
+
+        showLoading(true)
 
         viewModel.fetchQuote { quote ->
             if (!isDestroyed && !isFinishing) {
@@ -208,6 +297,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * ✅ NOUVEAU: Vérifie si on a la permission wallpaper
+     */
+    private fun hasWallpaperPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.SET_WALLPAPER) ==
+                PackageManager.PERMISSION_GRANTED
+    }
+
     // ═════════════════════════════════════════════════════════════
     // LIFECYCLE - Gestion du fond d'écran
     // ═════════════════════════════════════════════════════════════
@@ -217,8 +314,8 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "onPause()")
 
         // ✅ Définir le fond d'écran quand l'app passe en arrière-plan
-        // Mais seulement si pas en cours de destruction
-        if (!isFinishing && !isDestroyed) {
+        // Seulement si: pas en cours de destruction ET permission OK
+        if (!isFinishing && !isDestroyed && hasWallpaperPermission()) {
             setWallpaperIfAvailable()
         }
     }
@@ -232,8 +329,10 @@ class MainActivity : AppCompatActivity() {
     override fun onBackPressed() {
         Log.d("MainActivity", "onBackPressed()")
 
-        // ✅ Définir le fond d'écran avant de quitter
-        setWallpaperIfAvailable()
+        // ✅ Définir le fond d'écran avant de quitter (si permission OK)
+        if (hasWallpaperPermission()) {
+            setWallpaperIfAvailable()
+        }
 
         super.onBackPressed()
     }
@@ -265,6 +364,11 @@ class MainActivity : AppCompatActivity() {
     private fun setWallpaperIfAvailable(showNotification: Boolean = true) {
         if (isDestroyed) {
             Log.d("MainActivity", "setWallpaperIfAvailable - Activity détruite, skip")
+            return
+        }
+
+        if (!hasWallpaperPermission()) {
+            Log.d("MainActivity", "setWallpaperIfAvailable - Pas de permission, skip")
             return
         }
 
