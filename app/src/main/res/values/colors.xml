@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Couleur de fond au lancement -->
+    <color name="launch_background">#100</color>
+    <!-- ou n'importe quelle couleur : #000000 (noir), #FFFFFF (blanc), etc. -->
+</resources>
