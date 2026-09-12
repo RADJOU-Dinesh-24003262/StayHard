@@ -24,7 +24,7 @@ object WallpaperManagerHelper {
         return try {
             val wallpaperManager = WallpaperManager.getInstance(context)
 
-            // ✅ API 24+ : Définir uniquement pour l'écran de verrouillage
+            // 24+ : Définir uniquement pour l'écran de verrouillage
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 wallpaperManager.setBitmap(
                     bitmap, 

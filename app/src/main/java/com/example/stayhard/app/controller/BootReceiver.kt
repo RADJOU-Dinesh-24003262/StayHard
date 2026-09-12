@@ -8,7 +8,7 @@ import com.example.stayhard.app.utils.AlarmManagerHelper
 import com.example.stayhard.app.utils.Constants
 
 /**
- * ✅ Receiver pour reprogrammer les alarmes après un reboot du téléphone
+ * Receiver pour reprogrammer les alarmes après un reboot du téléphone
  * Les alarmes AlarmManager sont perdues au redémarrage
  */
 class BootReceiver : BroadcastReceiver() {
@@ -17,7 +17,7 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
             Log.d(Constants.LogTags.ALARM_MANAGER, "Appareil redémarré - Reprogrammation des alarmes")
             
-            // ✅ Reprogrammer toutes les alarmes
+            // Reprogrammer toutes les alarmes
             AlarmManagerHelper.rescheduleAlarms(context)
         }
     }

@@ -1,7 +1,7 @@
 package com.example.stayhard.app.utils
 
 /**
- * ✅ Sealed class pour gérer les résultats d'opérations asynchrones
+ * Sealed class pour gérer les résultats d'opérations asynchrones
  * Alternative type-safe aux callbacks avec null
  */
 sealed class Result<out T> {

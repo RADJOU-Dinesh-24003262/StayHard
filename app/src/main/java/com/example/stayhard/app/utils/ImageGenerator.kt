@@ -11,7 +11,7 @@ object ImageGenerator {
 
     /**
      * Génère une image bitmap à partir d'une citation
-     * ✅ CORRECTION: Gestion d'erreur robuste avec try-catch et nettoyage bitmap
+     * Gestion d'erreur robuste avec try-catch et nettoyage bitmap
      */
     fun generateQuoteImage(context: Context, quote: Quote): Bitmap {
         var bitmap: Bitmap? = null
@@ -32,13 +32,13 @@ object ImageGenerator {
             return bitmap
 
         } catch (e: OutOfMemoryError) {
-            // ✅ AJOUT: Gestion OOM
+            // Gestion OOM
             Log.e(Constants.LogTags.IMAGE_GENERATOR, "Mémoire insuffisante pour créer le bitmap", e)
             bitmap?.recycle()
             throw AppException.WallpaperException("Mémoire insuffisante")
 
         } catch (e: Exception) {
-            // ✅ AJOUT: Gestion erreurs générales
+            // Gestion erreurs générales
             Log.e(Constants.LogTags.IMAGE_GENERATOR, "Erreur lors de la génération: ${e.message}", e)
             bitmap?.recycle()
             throw e
@@ -66,7 +66,7 @@ object ImageGenerator {
         val gradient = style.backgroundGradient
 
         if (gradient != null) {
-            // ✅ Dégradé
+            // Dégradé
             val paint = Paint().apply {
                 isAntiAlias = true
                 val startColor = parseColorSafe(gradient.startColor)
@@ -89,7 +89,7 @@ object ImageGenerator {
             }
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
         } else {
-            // ✅ Couleur unie
+            // Couleur unie
             val bgColor = parseColorSafe(style.backgroundColor ?: Constants.DefaultStyle.BACKGROUND_COLOR)
             canvas.drawColor(bgColor)
         }
@@ -198,7 +198,7 @@ object ImageGenerator {
 
     /**
      * Parse une couleur de manière sécurisée avec fallback
-     * ✅ AMÉLIORATION: Log l'erreur pour debug
+     * Log l'erreur pour debug
      */
     private fun parseColorSafe(colorString: String): Int {
         return try {

@@ -15,7 +15,7 @@ class BitmapManager {
     @Synchronized
     fun updateBitmap(newBitmap: Bitmap?) {
         try {
-            // ✅ Recycler l'ancien bitmap avant de le remplacer
+            // Recycler l'ancien bitmap avant de le remplacer
             currentBitmap?.let { oldBitmap ->
                 if (!oldBitmap.isRecycled) {
                     oldBitmap.recycle()

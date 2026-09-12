@@ -21,12 +21,12 @@ object AlarmManagerHelper {
 
     /**
      * Configure les alarmes pour le changement automatique de fond d'écran
-     * ✅ OPTIMISATION: Seulement 6 alarmes au lieu de 15
+     * Seulement 6 alarmes au lieu de 15
      */
     fun setupWallpaperAlarms(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        // ✅ Vérifier si alarmes déjà programmées
+        // Vérifier si alarmes déjà programmées
         if (prefs.getBoolean(KEY_ALARMS_SCHEDULED, false)) {
             Log.d(Constants.LogTags.ALARM_MANAGER, "Alarmes déjà programmées, skip")
             return
@@ -42,7 +42,7 @@ object AlarmManagerHelper {
             scheduleAlarmForHour(context, alarmManager, hour, index)
         }
 
-        // ✅ Marquer comme programmées
+        // Marquer comme programmées
         prefs.edit().putBoolean(KEY_ALARMS_SCHEDULED, true).apply()
 
         Log.d(Constants.LogTags.ALARM_MANAGER, "${WALLPAPER_UPDATE_HOURS.size} alarmes programmées avec succès")
@@ -77,7 +77,7 @@ object AlarmManagerHelper {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        // ✅ Alarme exacte qui fonctionne même en Doze Mode
+        // Alarme exacte qui fonctionne même en Doze Mode
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setExactAndAllowWhileIdle(
@@ -105,7 +105,7 @@ object AlarmManagerHelper {
     fun cancelAllAlarms(context: Context) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-        // ✅ CORRECTION: Annuler TOUTES les alarmes possibles (anciennes + nouvelles)
+        // Annuler TOUTES les alarmes possibles (anciennes + nouvelles)
         val allPossibleHours = listOf(3, 6, 7, 8, 9, 10, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22)
 
         allPossibleHours.forEachIndexed { index, _ ->

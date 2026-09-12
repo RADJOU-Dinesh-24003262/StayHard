@@ -5,7 +5,7 @@ package com.example.stayhard.app.utils
  */
 object Constants {
 
-    // ✅ Configuration de l'image
+    // Configuration de l'image
     object Image {
         const val WIDTH = 1080
         const val HEIGHT = 1920
@@ -17,7 +17,7 @@ object Constants {
         const val AUTHOR_SPACING = 80f
     }
 
-    // ✅ Valeurs par défaut du style
+    // Valeurs par défaut du style
     object DefaultStyle {
         const val FONT_FAMILY = "Arial"
         const val FONT_SIZE = 24
@@ -27,20 +27,20 @@ object Constants {
         const val POSITION = "center"
     }
 
-    // ✅ API - HTTPS OBLIGATOIRE
+    // - HTTPS OBLIGATOIRE
     object Api {
         // 🔒 CHANGÉ: HTTP -> HTTPS pour la sécurité
         const val BASE_URL = "https://citation.dineshradj.eu/"
         const val ENDPOINT = "/api"
     }
 
-    // ✅ SharedPreferences
+    // SharedPreferences
     object Prefs {
         const val NAME = "stayhard_prefs"
         const val KEY_ALARMS_SCHEDULED = "alarms_scheduled"
     }
 
-    // ✅ Logs
+    // Logs
     object LogTags {
         const val WALLPAPER_UPDATE = "WallpaperUpdate"
         const val WALLPAPER_RECEIVER = "WallpaperReceiver"
@@ -50,7 +50,7 @@ object Constants {
         const val PERMISSION = "Permission"
     }
 
-    // ✅ Messages utilisateur
+    // Messages utilisateur
     object Messages {
         const val WALLPAPER_UPDATED = "Fond d'écran mis à jour"
         const val WALLPAPER_ERROR = "Erreur lors de la mise à jour du fond d'écran"
@@ -59,7 +59,7 @@ object Constants {
         const val PERMISSION_DENIED = "Permission refusée"
     }
 
-    // ✅ Codes de requête pour permissions
+    // Codes de requête pour permissions
     object RequestCodes {
         const val SET_WALLPAPER = 100
     }

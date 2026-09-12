@@ -16,14 +16,14 @@ import java.io.IOException
 
 class QuoteViewModel(application: Application) : AndroidViewModel(application) {
 
-    // ✅ Injection via Dependencies
+    // Injection via Dependencies
     private val repository = Dependencies.provideQuoteRepository()
 
-    // ✅ LiveData avec Result pour gestion d'état robuste
+    // LiveData avec Result pour gestion d'état robuste
     private val _quoteResult = MutableLiveData<Result<Quote>>()
     val quoteResult: LiveData<Result<Quote>> get() = _quoteResult
 
-    // ✅ LiveData legacy (pour compatibilité)
+    // LiveData legacy (pour compatibilité)
     private val _quote = MutableLiveData<Quote>()
     val quote: LiveData<Quote> get() = _quote
 
@@ -33,18 +33,18 @@ class QuoteViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun fetchQuote() {
         viewModelScope.launch {
-            // ✅ Émettre Loading
+            // Émettre Loading
             _quoteResult.value = Result.Loading
 
             try {
                 val quote = repository.getRandomQuote()
 
-                // ✅ Émettre Success
+                // Émettre Success
                 _quoteResult.value = Result.Success(quote)
                 _quote.value = quote
 
             } catch (e: IOException) {
-                // ✅ Erreur réseau
+                // Erreur réseau
                 Log.e(Constants.LogTags.QUOTE_VIEWMODEL, "Erreur réseau: ${e.message}", e)
                 _quoteResult.value = Result.Error(
                     AppException.NetworkException("Impossible de contacter le serveur"),
@@ -52,7 +52,7 @@ class QuoteViewModel(application: Application) : AndroidViewModel(application) {
                 )
 
             } catch (e: Exception) {
-                // ✅ Autre erreur
+                // Autre erreur
                 Log.e(Constants.LogTags.QUOTE_VIEWMODEL, "Erreur inattendue: ${e.message}", e)
                 _quoteResult.value = Result.Error(
                     AppException.ParseException(e.message ?: "Erreur inconnue"),

@@ -11,27 +11,27 @@ import com.example.stayhard.app.utils.Constants
 import kotlinx.coroutines.*
 
 /**
- * ✅ Receiver pour les alarmes de mise à jour automatique
+ * Receiver pour les alarmes de mise à jour automatique
  * CORRECTION: Gestion propre du scope de coroutine
  */
 class WallpaperUpdateReceiver : BroadcastReceiver() {
 
-    // ✅ AJOUT: Variable pour suivre le job
+    // Variable pour suivre le job
     private var updateJob: Job? = null
 
     override fun onReceive(context: Context, intent: Intent) {
         Log.d(Constants.LogTags.WALLPAPER_RECEIVER, "Alarme reçue à : ${System.currentTimeMillis()}")
 
-        // ✅ CORRECTION : Utiliser goAsync() pour opérations longues
+        // Utiliser goAsync() pour opérations longues
         val pendingResult = goAsync()
 
-        // ✅ Créer un scope avec SupervisorJob (crash isolé)
+        // Créer un scope avec SupervisorJob (crash isolé)
         val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-        // ✅ Stocker le job pour pouvoir l'annuler si nécessaire
+        // Stocker le job pour pouvoir l'annuler si nécessaire
         updateJob = scope.launch {
             try {
-                // ✅ Utiliser Dependencies au lieu de créer directement
+                // Utiliser Dependencies au lieu de créer directement
                 val repository = com.example.stayhard.app.di.Dependencies.provideQuoteRepository()
 
                 // Récupérer la citation
@@ -51,7 +51,7 @@ class WallpaperUpdateReceiver : BroadcastReceiver() {
 
                     Log.d(Constants.LogTags.WALLPAPER_RECEIVER, "Fond d'écran mis à jour automatiquement")
                 } finally {
-                    // ✅ IMPORTANT: Recycler le bitmap après utilisation
+                    // Recycler le bitmap après utilisation
                     if (!bitmap.isRecycled) {
                         bitmap.recycle()
                     }
@@ -60,16 +60,16 @@ class WallpaperUpdateReceiver : BroadcastReceiver() {
             } catch (e: Exception) {
                 Log.e(Constants.LogTags.WALLPAPER_RECEIVER, "Erreur lors de la mise à jour automatique: ${e.message}", e)
             } finally {
-                // ✅ IMPORTANT : Signaler la fin du traitement
+                // Signaler la fin du traitement
                 pendingResult.finish()
-                // ✅ AJOUT: Nettoyer la référence du job
+                // Nettoyer la référence du job
                 updateJob = null
             }
         }
     }
 
     /**
-     * ✅ AJOUT: Méthode pour annuler le job si nécessaire
+     * Méthode pour annuler le job si nécessaire
      */
     fun cancelUpdate() {
         updateJob?.cancel()

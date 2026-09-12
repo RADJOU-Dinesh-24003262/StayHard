@@ -7,12 +7,12 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 /**
- * ✅ Service Locator simple (alternative à Dagger/Hilt)
+ * Service Locator simple (alternative à Dagger/Hilt)
  * Centralise la création des dépendances
  */
 object Dependencies {
 
-    // ✅ Lazy initialization : créé seulement quand nécessaire
+    // Lazy initialization : créé seulement quand nécessaire
     private val apiService: ApiService by lazy {
         createRetrofit().create(ApiService::class.java)
     }

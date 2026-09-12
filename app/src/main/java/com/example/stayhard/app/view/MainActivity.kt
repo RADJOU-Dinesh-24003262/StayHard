@@ -28,14 +28,14 @@ class MainActivity : AppCompatActivity() {
     // ViewModel
     private lateinit var viewModel: QuoteViewModel
 
-    // ✅ Gestionnaire de Bitmap pour éviter les leaks
+    // Gestionnaire de Bitmap pour éviter les leaks
     private val bitmapManager = BitmapManager()
 
     // État
     private var currentToast: Toast? = null
     private var isLoading = false
 
-    // ✅ Flag pour éviter les opérations après destruction
+    // Flag pour éviter les opérations après destruction
     private var isDestroyed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,12 +47,12 @@ class MainActivity : AppCompatActivity() {
         initViews()
         initViewModel()
 
-        // ✅ AJOUT: Vérifier les permissions avant de continuer
+        // Vérifier les permissions avant de continuer
         checkPermissions()
     }
 
     /**
-     * ✅ NOUVEAU: Vérifie et demande les permissions nécessaires
+     * Vérifie et demande les permissions nécessaires
      */
     private fun checkPermissions() {
         // Permission SET_WALLPAPER
@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * ✅ NOUVEAU: Affiche un dialog d'explication
+     * Affiche un dialog d'explication
      */
     private fun showPermissionExplanationDialog() {
         AlertDialog.Builder(this)
@@ -90,7 +90,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * ✅ NOUVEAU: Demande la permission
+     * Demande la permission
      */
     private fun requestWallpaperPermission() {
         ActivityCompat.requestPermissions(
@@ -101,7 +101,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * ✅ NOUVEAU: Callback du résultat de la demande de permission
+     * Callback du résultat de la demande de permission
      */
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -126,7 +126,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * ✅ NOUVEAU: Appelé quand les permissions sont OK (ou refusées mais on continue)
+     * Appelé quand les permissions sont OK (ou refusées mais on continue)
      */
     private fun onPermissionsGranted() {
         setupAlarms()
@@ -150,7 +150,7 @@ class MainActivity : AppCompatActivity() {
     private fun initViewModel() {
         viewModel = ViewModelProvider(this)[QuoteViewModel::class.java]
 
-        // ✅ Observer le LiveData (meilleure pratique)
+        // Observer le LiveData (meilleure pratique)
         viewModel.quote.observe(this) { quote ->
             if (!isDestroyed && quote != null) {
                 handleQuoteSuccess(quote)
@@ -190,7 +190,7 @@ class MainActivity : AppCompatActivity() {
         isLoading = true
         showLoading(true)
 
-        // ✅ Utiliser le callback mais avec protection
+        // Utiliser le callback mais avec protection
         viewModel.fetchQuote { quote ->
             if (!isDestroyed && !isFinishing) {
                 runOnUiThread {
@@ -237,7 +237,7 @@ class MainActivity : AppCompatActivity() {
             // Générer l'image
             val bitmap = ImageGenerator.generateQuoteImage(this, quote)
 
-            // ✅ Mettre à jour via BitmapManager (recycle l'ancien)
+            // Mettre à jour via BitmapManager (recycle l'ancien)
             bitmapManager.updateBitmap(bitmap)
 
             // Afficher dans l'ImageView
@@ -298,7 +298,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * ✅ NOUVEAU: Vérifie si on a la permission wallpaper
+     * Vérifie si on a la permission wallpaper
      */
     private fun hasWallpaperPermission(): Boolean {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.SET_WALLPAPER) ==
@@ -313,7 +313,7 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
         Log.d("MainActivity", "onPause()")
 
-        // ✅ Définir le fond d'écran quand l'app passe en arrière-plan
+        // Définir le fond d'écran quand l'app passe en arrière-plan
         // Seulement si: pas en cours de destruction ET permission OK
         if (!isFinishing && !isDestroyed && hasWallpaperPermission()) {
             setWallpaperIfAvailable()
@@ -329,7 +329,7 @@ class MainActivity : AppCompatActivity() {
     override fun onBackPressed() {
         Log.d("MainActivity", "onBackPressed()")
 
-        // ✅ Définir le fond d'écran avant de quitter (si permission OK)
+        // Définir le fond d'écran avant de quitter (si permission OK)
         if (hasWallpaperPermission()) {
             setWallpaperIfAvailable()
         }
@@ -340,10 +340,10 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         Log.d("MainActivity", "onDestroy() - début")
 
-        // ✅ Marquer comme détruit AVANT tout nettoyage
+        // Marquer comme détruit AVANT tout nettoyage
         isDestroyed = true
 
-        // ✅ Nettoyer les ressources
+        // Nettoyer les ressources
         try {
             bitmapManager.clear()
             currentToast?.cancel()
@@ -385,7 +385,7 @@ class MainActivity : AppCompatActivity() {
 
                 if (success) {
                     Log.d("MainActivity", "Wallpaper défini avec succès")
-                    // ✅ Afficher toast seulement si demandé ET si l'app est visible
+                    // Afficher toast seulement si demandé ET si l'app est visible
                     if (showNotification && !isFinishing) {
                         showToast(Constants.Messages.WALLPAPER_UPDATED)
                     }
